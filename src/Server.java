@@ -24,18 +24,15 @@ public class Server {
 
                 Socket clientSocket = serverSocket.accept();
                 System.out.println("Client connected");
-                BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-                PrintStream out = new PrintStream(clientSocket.getOutputStream());
+
                 if (nbusers < nbudserma)  {
-                    synchronized (clientOutputs) {  // Protéger l'accès à la liste
-                        clientOutputs.add(out);
-                        nbusers++;
-                    }
+
                     // Lancer un nouveau thread pour chaque client
-                    Thread clientThread = new Thread(new Service(in, out));
+                    Thread clientThread = new Thread(new Service(clientSocket));
                     clientThread.start();
                 }
                 else {
+                    PrintStream out = new PrintStream(clientSocket.getOutputStream());
                     out.println("nombre maximum de clients atteints ressayez plus tard");
                     clientSocket.close();
                 }

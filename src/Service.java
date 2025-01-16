@@ -1,6 +1,8 @@
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.PrintStream;
+import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Scanner;
 
@@ -8,13 +10,18 @@ public class Service implements Runnable {
     private Scanner sc;
     private PrintStream out;
     private BufferedReader in;
+    private Socket socket;
     //private Server server;
     private boolean use = true;
     //private static ArrayList<PrintStream> clientOutputs;
-    public Service(BufferedReader in, PrintStream out) throws IOException {
+    public Service( Socket clientSocket) throws IOException {
+        this.in= new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+        this.out = new PrintStream(clientSocket.getOutputStream());
         this.sc = new Scanner(in);
-        this.out = out;
-        //this.clientOutputs = c;
+        synchronized (Server.clientOutputs) {  // Protéger l'accès à la liste
+            Server.clientOutputs.add(out);
+            Server.nbusers++;
+        }
     }
     public Service(){
 
