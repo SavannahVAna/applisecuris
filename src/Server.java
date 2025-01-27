@@ -9,16 +9,18 @@ import java.util.ArrayList;
 public class Server {
     private ServerSocket serverSocket;
     protected static ArrayList<PrintStream> clientOutputs;
+    protected static ArrayList<String> clientNames;
     static final int nbudserma = 100;
     protected static int nbusers;
     public Server(int port) throws IOException {
         serverSocket = new ServerSocket(port);
         clientOutputs = new ArrayList<>();
+        clientNames = new ArrayList<>();
         nbusers = 0;
     }
 
     public void start() {
-        System.out.println("Server started...");
+        System.out.println("Server started on port " + serverSocket.getLocalPort());
         while (true) {
             try {
 
@@ -41,5 +43,7 @@ public class Server {
             }
         }
     }
+
+
 }
 
