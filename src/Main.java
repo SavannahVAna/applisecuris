@@ -6,19 +6,18 @@ import java.util.ArrayList;
 
 public class Main {
     private static ServerSocket serverSocket;
-    protected static ArrayList<PrintStream> clientOutputs;
-    protected static ArrayList<String> clientNames;
     static final int nbudserma = 100;
     protected static int nbusers;
+    protected static ArrayList<User> clientUsers;
+    protected static ArrayList<Login> serverLogins;
     public static void main(String[] args) throws IOException {
+        clientUsers = new ArrayList<>();
         if (args.length == 0) {
             serverSocket = new ServerSocket(1234);
         }
         else {
             serverSocket = new ServerSocket(Integer.parseInt(args[0]));
         }
-        clientOutputs = new ArrayList<>();
-        clientNames = new ArrayList<>();
         nbusers = 0;
 
         System.out.println("Server started on port " + serverSocket.getLocalPort());
@@ -44,7 +43,9 @@ public class Main {
         System.out.println(message + " connected");
     }
 
-    public static void printDisconnect(String message) {
-        System.out.println(message + " disconnected");
+    private void initLogin() {
+        serverLogins = new ArrayList<>();
+
     }
+
 }
