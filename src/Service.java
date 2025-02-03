@@ -96,6 +96,16 @@ public class Service implements Runnable {
         return input.substring(i+1);
     }
 
+    private void disconnect(){
+        synchronized (Main.serverLogins) {
+            for (Login user : Main.serverLogins) {
+                if(user.getName().equals(name)) {
+                    user.setConnected();
+                }
+            }
+        }
+    }
+
     private void mainLoop() throws IOException {
         String input;
         String action;
@@ -148,6 +158,7 @@ public class Service implements Runnable {
                 Main.broadcastMessage(this.name + "has left the room");
                 Main.nbusers--;
                 remove();
+                disconnect();
                 out.close();
                 try {
                     in.close();
