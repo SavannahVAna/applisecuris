@@ -12,6 +12,7 @@ public class Main {
     protected static ArrayList<Login> serverLogins;
     public static void main(String[] args) throws IOException {
         clientUsers = new ArrayList<>();
+        serverLogins = new ArrayList<>();
         if (args.length == 0) {
             serverSocket = new ServerSocket(1234);
         }
@@ -44,7 +45,7 @@ public class Main {
     }
 
     private void initLogin() {
-        serverLogins = new ArrayList<>();
+
 
     }
 

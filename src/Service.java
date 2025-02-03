@@ -42,20 +42,35 @@ public class Service implements Runnable {
     }
 
     private void queryNmae(){
-        boolean correct = false;
+        boolean exist;
+        boolean completed = false;
         String nam = null;
-        synchronized (Main.clientUsers) {
+        String pass = null;
+        synchronized (Main.serverLogins) {
             do {
                 out.println("enter your name");
                 nam = sc.nextLine();
-                correct = true;
-                for (User user : Main.clientUsers) {
+                exist = false;
+                for (Login user : Main.serverLogins) {
                     if (nam.equals(user.getName())) {
-                        correct = false;
-                        out.println("name already in use please choose another");
+                        exist = true;
+                        out.println("welcome back ! \nPlease enter your password : ");
+                        pass = sc.nextLine();
+                        if (pass.equals(user.getPass())) {
+                            completed = true;
+                            user.setConnected();
+                        }
+                        else {
+                            out.println("wrong password");
+                        }
                     }
                 }
-            } while (!correct);
+                if (!exist) {
+                    out.println("welcome to the server, please set a password : ");
+                    pass = sc.nextLine();
+                    Main.serverLogins.add(new Login(nam,pass));
+                }
+            } while (!completed);
 
             this.name = nam;
         }
