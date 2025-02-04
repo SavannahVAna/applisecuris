@@ -54,21 +54,30 @@ public class Service implements Runnable {
                 for (Login user : Main.serverLogins) {
                     if (nam.equals(user.getName())) {
                         exist = true;
-                        out.println("welcome back ! \nPlease enter your password : ");
-                        pass = sc.nextLine();
-                        if (pass.equals(user.getPass())) {
-                            completed = true;
-                            user.setConnected();
+
+
+                        if (!user.isConnected()) {
+                            out.println("welcome back ! \nPlease enter your password : ");
+                            pass = sc.nextLine();
+                            if (pass.equals(user.getPass())){
+                                completed = true;
+                                user.setConnected();
+                            }
+                            else {
+                                out.println("wrong password");
+                            }
                         }
                         else {
-                            out.println("wrong password");
+                            out.println(user.getName() + " is already connected");
                         }
+
                     }
                 }
                 if (!exist) {
                     out.println("welcome to the server, please set a password : ");
                     pass = sc.nextLine();
                     Main.serverLogins.add(new Login(nam,pass));
+                    completed = true;
                 }
             } while (!completed);
 
@@ -112,9 +121,9 @@ public class Service implements Runnable {
         String rest;
         while (use) {
             input = sc.nextLine();
-            action = getAction(input);
-            rest = getRest(input);
-            if (action.equals("/msgAll")) {
+
+            if (input.startsWith("/msgAll")) {
+                rest = getRest(input);
                 synchronized (Main.clientUsers) {  // Synchroniser l'accès à la liste
                     for (User clientOut : Main.clientUsers) {
                         if(clientOut.getOut() != out){
@@ -124,7 +133,7 @@ public class Service implements Runnable {
                 }
                 Main.broadcastMessage(this.name + " : " + input);
             }
-            else if (action.equals("/list")) {
+            else if (input.startsWith("/list")) {
                 out.print("[SERVER] Connected users :");
                 synchronized (Main.clientUsers) {
                     for (User clientOut : Main.clientUsers) {
@@ -133,19 +142,21 @@ public class Service implements Runnable {
                         }
                     }
                 }
+                out.print("\n");
             }
-            else if (action.equals("/msgTo")) {
+            else if (input.startsWith("/msgTo")) {
+                rest = getRest(input);
                 action = getAction(rest); //prendre le nom d'utilisateur
                 rest = getRest(rest);//prendre le reste du message
                 synchronized (Main.clientUsers) {  // Synchroniser l'accès à la liste
                     for (User client : Main.clientUsers) {
                         if(client.getName().equals(action)){
-                            client.getOut().println(this.name + " : " + rest);}
+                            client.getOut().println("[whisper] " + this.name + " : " + rest);}
                     }
 
                 }
             }
-            else if (action.equals("/quit")){
+            else if (input.startsWith("/quit")){
                 use = false;
                 out.println("[SERVER] Goodbye!");
                 synchronized (Main.clientUsers) {  // Synchroniser l'accès à la liste
@@ -155,7 +166,7 @@ public class Service implements Runnable {
                     }
 
                 }
-                Main.broadcastMessage(this.name + "has left the room");
+                Main.broadcastMessage(this.name + " has left the room");
                 Main.nbusers--;
                 remove();
                 disconnect();
@@ -186,7 +197,7 @@ public class Service implements Runnable {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        out.println("[SERVER] hello, welcome to the chat server!, " + Main.nbusers + " connectés, exit to leave");
+        out.println("[SERVER] hello, welcome to the chat server!, " + Main.nbusers + " connectés, /quit to leave");
         out.print("[SERVER] Connected users :");
         synchronized (Main.clientUsers) {
             for (User clientOut : Main.clientUsers) {
@@ -195,6 +206,7 @@ public class Service implements Runnable {
                 }
             }
         }
+        out.print("\n");
         try {
             mainLoop();
         } catch (IOException e) {
