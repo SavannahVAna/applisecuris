@@ -235,13 +235,14 @@ public class Service implements Runnable {
         byte[] buffer = new byte[4096];
         int bytesRead;
         //start new connection and send port
-        ServerSocket s = new ServerSocket(0);
-        out.println(s.getLocalPort());
-        Socket soc2 = s.accept();
-        DataInputStream dataIn = new DataInputStream(soc2.getInputStream());
+
         //ask receiver whether he wants to receive the file
         if(askUser(receiver)){
-            user.getOut().println(s.getLocalPort() + " " + filen);
+            ServerSocket s = new ServerSocket(0);
+            out.println("TRANSACTION_ACCEPTED "+s.getLocalPort());
+            Socket soc2 = s.accept();
+            DataInputStream dataIn = new DataInputStream(soc2.getInputStream());
+            user.getOut().println("555_TRANSFER_555 "+s.getLocalPort() + " " + filen);
             Socket soc3 = s.accept();
             DataOutputStream dataOut = new DataOutputStream(soc3.getOutputStream());
             while ((bytesRead = dataIn.read(buffer)) != -1) {
@@ -249,16 +250,17 @@ public class Service implements Runnable {
             }
             dataOut.close();
             soc3.close();
+            dataIn.close();
+            soc2.close();
+            s.close();
         }
-        dataIn.close();
-        soc2.close();
-        s.close();
 
     }
 
     private boolean askUser(User user) throws IOException {
-        user.getOut().println(name + " wants to send you a file, accept? y/n");
-        return user.getIn().readLine().equals("y");
+        user.getOut().println("555_TRANFER_REQ_555 "+ name);
+        //user.getOut().println(name + " wants to send you a file, accept? y/n");
+        return user.getIn().readLine().equals("666_ACCEPTED_666");
     }
 
     public void run() {
