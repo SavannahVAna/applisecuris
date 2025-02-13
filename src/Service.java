@@ -129,7 +129,11 @@ public class Service implements Runnable {
         String rest;
         String dest;
         String filename;
+        boolean no_user;
+        //boolean no_file;
         boolean transfer;
+        String sender;
+        User user_send = null;
         User user_received = null;
         while (use) {
             input = sc.nextLine();
@@ -171,32 +175,53 @@ public class Service implements Runnable {
             else if(input.startsWith("555FILE555")) {
                 //se préparer a recevoir le fichier et le transférer
                 rest = getRest(input);
-                filename = getAction(rest);
-                rest = getRest(rest);
-                dest = getAction(rest);
+                //filename = getAction(rest);
+                //rest = getRest(rest);
+                //filename = getAction(rest);
+
+                dest = getRest(rest);
+                //out.println(dest);
+                //out.println(filename + " : " + dest);
+                //dest = getAction(rest);
                 transfer = false;
+                //no_file = false;
+                no_user = true;
                 //check to see if dest can receive a file
                 synchronized (Main.clientUsers) {
                     for (User client : Main.clientUsers) {
                         if(client.getName().equals(dest)){
+                            no_user = false;
                             if(client.isFileable()){
                                 transfer = true;
                                 user_received = client;
-
                             }
                             else {
                                 out.println("NO_FILE_TRANFER");
                             }
-                        }else {
-                            out.println("NO_USER");
                         }
+                    }
+                    if (no_user) {
+                        out.println("NO_USER");
                     }
                 }
                 if(transfer){
-                    handleTransfer(user_received,filename);
+                    user_received.getOut().println("555_TRANFER_REQ_555 "+ name);
                 }
-            }
-            else if (input.startsWith("/quit")){
+            } else if (input.startsWith("666_ACCEPTED_666")) {
+                //si transaction acceptée alors envoyer fichier?
+                sender = getRest(input);
+                user_send = null;
+                for (User client : Main.clientUsers) {
+                    if(client.getName().equals(sender)){
+                        user_send = client;
+                    }
+                }
+                //open socket
+                if (user_send != null) {
+                    handleTransfer(user_send);
+                }
+
+            } else if (input.startsWith("/quit")){
                 use = false;
                 out.println("[SERVER] Goodbye!");
                 synchronized (Main.clientUsers) {  // Synchroniser l'accès à la liste
@@ -231,32 +256,32 @@ public class Service implements Runnable {
         }
     }
 
-    private void handleTransfer(User receiver, String filen) throws IOException {
+    private void handleTransfer(User sender) throws IOException {
         byte[] buffer = new byte[4096];
         int bytesRead;
         //start new connection and send port
 
         //ask receiver whether he wants to receive the file
-        if(askUser(receiver)){
-            ServerSocket s = new ServerSocket(0);
-            out.println("TRANSACTION_ACCEPTED "+s.getLocalPort());
-            Socket soc2 = s.accept();
-            DataInputStream dataIn = new DataInputStream(soc2.getInputStream());
-            user.getOut().println("555_TRANSFER_555 "+s.getLocalPort() + " " + filen);
-            Socket soc3 = s.accept();
-            DataOutputStream dataOut = new DataOutputStream(soc3.getOutputStream());
-            while ((bytesRead = dataIn.read(buffer)) != -1) {
-                dataOut.write(buffer, 0, bytesRead);
-            }
-            dataOut.close();
-            soc3.close();
-            dataIn.close();
-            soc2.close();
-            s.close();
+
+        ServerSocket s = new ServerSocket(0);
+        sender.getOut().println("TRANSACTION_ACCEPTED "+s.getLocalPort());
+        Socket soc2 = s.accept();
+        DataInputStream dataIn = new DataInputStream(soc2.getInputStream());
+        out.println("555_TRANSFER_555 "+s.getLocalPort());
+        Socket soc3 = s.accept();
+        DataOutputStream dataOut = new DataOutputStream(soc3.getOutputStream());
+        while ((bytesRead = dataIn.read(buffer)) != -1) {
+            dataOut.write(buffer, 0, bytesRead);
         }
+        dataOut.close();
+        soc3.close();
+        dataIn.close();
+        soc2.close();
+        s.close();
+
 
     }
-
+    //change it bc it goes to mainloop instead
     private boolean askUser(User user) throws IOException {
         user.getOut().println("555_TRANFER_REQ_555 "+ name);
         //user.getOut().println(name + " wants to send you a file, accept? y/n");

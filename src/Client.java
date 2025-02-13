@@ -8,17 +8,24 @@ public class Client {
     private Socket socket;
     private BufferedReader reader;
     private PrintWriter writer;
-    protected static String fna;
+    protected String fna;
     protected static String dest;
     protected boolean isAsked = false;
+    protected String user_received;
+    protected String file_r;
 
     public Client(String hostname, int port) {
         this.hostname = hostname;
         this.port = port;
     }
 
+
+
     public Client() {}
 
+    public String getFname() {
+        return fna;
+    }
     public void start() {
         try {
             String message = "";
@@ -29,7 +36,7 @@ public class Client {
             System.out.println("Connecté au serveur de chat");
 
             // Thread pour écouter les messages du serveur
-            new Thread(new ReadMessages()).start();
+            new Thread(new ReadMessages(this)).start();
 
             // Lire les messages de l'utilisateur et les envoyer au serveur
             Scanner scanner = new Scanner(System.in);
@@ -40,23 +47,29 @@ public class Client {
                 if(isAsked){
                     isAsked = false;
                     if(message.equals("y")){
-                        message = "666_ACCEPTED_666";
+                        message = "666_ACCEPTED_666 " + user_received;
+                        writer.println(message);
+                        System.out.println("under which name should the file be saved?");
+                        file_r = scanner.nextLine();
                     }
                 }
-                writer.println(message);
-                if (message.startsWith("/sendFile")) {
+                else if (message.startsWith("/sendFile")) {
                     //se préparer a envoyer le fichier
-                    message = message.substring("/sendFile".length() +1);
+                    message = getRest(message);
                     //nom du fichier en premier nom du destinataire en deuxieme
 
                     fna = getAction(message);
                     //InputStream inputStream = new FileInputStream(getAction(message));
-                    message = getRest(message);
-                    dest = getAction(message);
+                    dest = getRest(message);
+                    //System.out.println(fna + " " + dest);
+                    //dest = getAction(message);
                     //send message to server to indicate we are sending a file
-                    writer.println("555FILE555");
+                    writer.println("555FILE555 "+dest);
                     //read file and send it NOT YET
 
+                }
+                else {
+                    writer.println(message);
                 }
             }
         } catch (IOException e) {
@@ -65,12 +78,17 @@ public class Client {
     }
 
     private class ReadMessages implements Runnable {
+        private Client client;
+
+        public ReadMessages(Client client) {
+            this.client = client;
+        }
         @Override
         public void run() {
             try {
                 String message;
                 String rt;
-                String fff;
+                //String fff;
                 while ((message = reader.readLine()) != null) {
                     //ad differnt cases for protocol mesages
                     if (message.startsWith("NO_FILE_TRANFER")) {
@@ -80,16 +98,17 @@ public class Client {
                         System.out.println("This user does not exist");
                     }
                     else if (message.startsWith("TRANSACTION_ACCEPTED")) {
-                        sendFile(Client.fna, Client.dest, getRest(message));
+                        sendFile(client.fna , getRest(message));
                     }
                     else if (message.startsWith("555_TRANFER_REQ_555")) {
                         Acknoledge(getRest(message));
                     }
                     else if (message.startsWith("555_TRANSFER_555")) {
+                        System.out.println(message);
                         message = getRest(message);
-                        rt = getAction(message);
-                        fff = getRest(message);
-                        receiveFile(rt,fff);
+                        rt = getRest(message);
+                        //fff = getRest(message);
+                        receiveFile(rt);
                     }
                     else {
                         System.out.println(message);
@@ -103,11 +122,13 @@ public class Client {
 
         private void Acknoledge(String req){
             System.out.println(req + " wants to send you a file, accapt? y/n");
+            user_received = req;
             isAsked = true;
         }
 
-        private void sendFile(String filePath, String dest, String port) {
+        private void sendFile(String filePath, String port) {
             File file = new File(filePath);
+            System.out.println("path " +filePath);
             if (!file.exists()) {
                 System.out.println("Fichier introuvable.");
                 return;
@@ -130,7 +151,7 @@ public class Client {
 
                 fileIn.close();
                 dataOut.close();
-                fileSocket.close();
+                //fileSocket.close();
 
                 System.out.println("Fichier envoyé avec succès.");
             } catch (IOException e) {
@@ -138,9 +159,9 @@ public class Client {
             }
         }
 
-        private void receiveFile(String po, String filePath) {
+        private void receiveFile(String po) {
             int port = Integer.parseInt(po);
-            File file = new File(filePath);
+            File file = new File(file_r);
             try {
                 Socket fileSocket = new Socket(hostname, port);
                 //create a new socket and connect
@@ -158,7 +179,7 @@ public class Client {
                 dataOut.close();
                 fileSocket.close();
 
-                System.out.println("Fichier reçu ! " + filePath);
+                System.out.println("Fichier reçu !");
             } catch (IOException e) {
                 System.out.println("Erreur lors de la reception " + e.getMessage());
             }
