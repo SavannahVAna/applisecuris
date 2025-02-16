@@ -106,7 +106,7 @@ public class Client {
                         Acknoledge(getRest(message));
                     }
                     else if (message.startsWith("555_TRANSFER_555")) {
-                        System.out.println(message);
+                        //System.out.println(message);
                         message = getRest(message);
                         rt = getRest(message);
                         //fff = getRest(message);
