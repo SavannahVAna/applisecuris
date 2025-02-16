@@ -179,7 +179,9 @@ public class Service implements Runnable {
                 //rest = getRest(rest);
                 //filename = getAction(rest);
 
-                dest = getRest(rest);
+                dest = getAction(rest);
+                rest = getRest(rest);
+                filename = getRest(rest);
                 //out.println(dest);
                 //out.println(filename + " : " + dest);
                 //dest = getAction(rest);
@@ -205,7 +207,7 @@ public class Service implements Runnable {
                     }
                 }
                 if(transfer){
-                    user_received.getOut().println("555_TRANFER_REQ_555 "+ name);
+                    user_received.getOut().println("555_TRANFER_REQ_555 "+ name + " " +filename);
                 }
             } else if (input.startsWith("666_ACCEPTED_666")) {
                 //si transaction acceptée alors envoyer fichier?

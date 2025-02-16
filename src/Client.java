@@ -29,6 +29,7 @@ public class Client {
     public void start() {
         try {
             String message = "";
+            String line = "";
             socket = new Socket(hostname, port);
             reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             writer = new PrintWriter(socket.getOutputStream(), true);
@@ -49,8 +50,8 @@ public class Client {
                     if(message.equals("y")){
                         message = "666_ACCEPTED_666 " + user_received;
                         writer.println(message);
-                        System.out.println("under which name should the file be saved?");
-                        file_r = scanner.nextLine();
+                        //System.out.println("under which name should the file be saved?");
+                        //file_r = scanner.nextLine();
                     }
                 }
                 else if (message.startsWith("/sendFile")) {
@@ -59,12 +60,13 @@ public class Client {
                     //nom du fichier en premier nom du destinataire en deuxieme
 
                     fna = getAction(message);
+                    line = getFileName(fna);
                     //InputStream inputStream = new FileInputStream(getAction(message));
                     dest = getRest(message);
                     //System.out.println(fna + " " + dest);
                     //dest = getAction(message);
                     //send message to server to indicate we are sending a file
-                    writer.println("555FILE555 "+dest);
+                    writer.println("555FILE555 "+dest + " " + line);
                     //read file and send it NOT YET
 
                 }
@@ -121,8 +123,10 @@ public class Client {
         }
 
         private void Acknoledge(String req){
-            System.out.println(req + " wants to send you a file, accapt? y/n");
-            user_received = req;
+            user_received = getAction(req);
+            System.out.println(user_received + " wants to send you a file, accapt? y/n");
+
+            file_r = getRest(req);
             isAsked = true;
         }
 
@@ -186,6 +190,13 @@ public class Client {
         }
 
 
+    }
+
+    public static String getFileName(String path) {
+        if (path == null || path.isEmpty()) {
+            return "";
+        }
+        return new File(path).getName();
     }
 
     private String getAction(String input){
