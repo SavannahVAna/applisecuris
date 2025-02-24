@@ -1,8 +1,14 @@
+import javax.crypto.Cipher;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.ArrayList;
-import java.util.Scanner;
+import java.security.KeyFactory;
+import java.security.NoSuchAlgorithmException;
+import java.security.PublicKey;
+import java.security.Security;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.X509EncodedKeySpec;
+import java.util.*;
 
 public class Service implements Runnable {
     private Scanner sc;
@@ -21,7 +27,7 @@ public class Service implements Runnable {
 
     }
 
-    private void initService() throws IOException {
+    private void initService() throws Exception {
         this.in= new BufferedReader(new InputStreamReader(socket.getInputStream()));
         this.out = new PrintStream(socket.getOutputStream());
         boolean f = false;
@@ -45,7 +51,7 @@ public class Service implements Runnable {
         Main.printConnect(name);
     }
 
-    private void queryNmae(){
+    private void queryNmae() throws Exception {
         boolean exist;
         boolean completed = false;
         String nam = null;
@@ -64,8 +70,11 @@ public class Service implements Runnable {
                             out.println("welcome back ! \nPlease enter your password : ");
                             pass = sc.nextLine();
                             if (pass.equals(user.getPass())){
-                                completed = true;
-                                user.setConnected();
+                                //send challenge
+                                if (generateChallenge(user.getPublicKey())) {
+                                    completed = true;
+                                    user.setConnected();
+                                }
                             }
                             else {
                                 out.println("wrong password");
@@ -80,6 +89,8 @@ public class Service implements Runnable {
                 if (!exist) {
                     out.println("welcome to the server, please set a password : ");
                     pass = sc.nextLine();
+                    //send getpubkey instruction
+                    out.println("GET_PUBKEY");
                     Main.serverLogins.add(new Login(nam,pass));
                     completed = true;
                 }
@@ -123,137 +134,144 @@ public class Service implements Runnable {
         }
     }
 
-    private void mainLoop() throws IOException {
+    private void mainLoop() throws IOException, InvalidKeySpecException, NoSuchAlgorithmException {
         String input;
         String action;
         String rest;
         String dest;
         String filename;
         boolean no_user;
+        String key;
         //boolean no_file;
         boolean transfer;
         String sender;
         User user_send = null;
         User user_received = null;
         while (use) {
-            input = sc.nextLine();
+            if(sc.hasNextLine()) {
+                input = sc.nextLine();
 
-            if (input.startsWith("/msgAll")) {
-                rest = getRest(input);
-                synchronized (Main.clientUsers) {  // Synchroniser l'accès à la liste
-                    for (User clientOut : Main.clientUsers) {
-                        if(clientOut.getOut() != out){
-                            clientOut.getOut().println(this.name + " : " + rest);}
-                    }
-
-                }
-                Main.broadcastMessage(this.name + " : " + input);
-            }
-            else if (input.startsWith("/list")) {
-                out.print("[SERVER] Connected users :");
-                synchronized (Main.clientUsers) {
-                    for (User clientOut : Main.clientUsers) {
-                        if (!clientOut.getName().equals(name)) {
-                            out.print(" " + clientOut.getName() + " ");
-                        }
-                    }
-                }
-                out.print("\n");
-            }
-            else if (input.startsWith("/msgTo")) {
-                rest = getRest(input);
-                action = getAction(rest); //prendre le nom d'utilisateur
-                rest = getRest(rest);//prendre le reste du message
-                synchronized (Main.clientUsers) {  // Synchroniser l'accès à la liste
-                    for (User client : Main.clientUsers) {
-                        if(client.getName().equals(action)){
-                            client.getOut().println("[whisper] " + this.name + " : " + rest);}
-                    }
-
-                }
-            }
-            else if(input.startsWith("555FILE555")) {
-                //se préparer a recevoir le fichier et le transférer
-                rest = getRest(input);
-                //filename = getAction(rest);
-                //rest = getRest(rest);
-                //filename = getAction(rest);
-
-                dest = getAction(rest);
-                rest = getRest(rest);
-                filename = getRest(rest);
-                //out.println(dest);
-                //out.println(filename + " : " + dest);
-                //dest = getAction(rest);
-                transfer = false;
-                //no_file = false;
-                no_user = true;
-                //check to see if dest can receive a file
-                synchronized (Main.clientUsers) {
-                    for (User client : Main.clientUsers) {
-                        if(client.getName().equals(dest)){
-                            no_user = false;
-                            if(client.isFileable()){
-                                transfer = true;
-                                user_received = client;
+                if (input.startsWith("/msgAll")) {
+                    rest = getRest(input);
+                    synchronized (Main.clientUsers) {  // Synchroniser l'accès à la liste
+                        for (User clientOut : Main.clientUsers) {
+                            if (clientOut.getOut() != out) {
+                                clientOut.getOut().println(this.name + " : " + rest);
                             }
-                            else {
-                                out.println("NO_FILE_TRANFER");
+                        }
+
+                    }
+                    Main.broadcastMessage(this.name + " : " + input);
+                } else if (input.startsWith("/list")) {
+                    out.print("[SERVER] Connected users :");
+                    synchronized (Main.clientUsers) {
+                        for (User clientOut : Main.clientUsers) {
+                            if (!clientOut.getName().equals(name)) {
+                                out.print(" " + clientOut.getName() + " ");
                             }
                         }
                     }
-                    if (no_user) {
-                        out.println("NO_USER");
-                    }
-                }
-                if(transfer){
-                    user_received.getOut().println("555_TRANFER_REQ_555 "+ name + " " +filename);
-                }
-            } else if (input.startsWith("666_ACCEPTED_666")) {
-                //si transaction acceptée alors envoyer fichier?
-                sender = getRest(input);
-                user_send = null;
-                for (User client : Main.clientUsers) {
-                    if(client.getName().equals(sender)){
-                        user_send = client;
-                    }
-                }
-                //open socket
-                if (user_send != null) {
-                    handleTransfer(user_send);
-                }
+                    out.print("\n");
+                } else if (input.startsWith("/msgTo")) {
+                    rest = getRest(input);
+                    action = getAction(rest); //prendre le nom d'utilisateur
+                    rest = getRest(rest);//prendre le reste du message
+                    synchronized (Main.clientUsers) {  // Synchroniser l'accès à la liste
+                        for (User client : Main.clientUsers) {
+                            if (client.getName().equals(action)) {
+                                client.getOut().println("[whisper] " + this.name + " : " + rest);
+                            }
+                        }
 
-            } else if (input.startsWith("/quit")){
-                use = false;
-                out.println("[SERVER] Goodbye!");
-                synchronized (Main.clientUsers) {  // Synchroniser l'accès à la liste
-                    for (User clientOut : Main.clientUsers) {
-                        if(clientOut.getOut() != out){
-                            clientOut.getOut().println(this.name + " has left the chat");}
+                    }
+                } else if (input.startsWith("555FILE555")) {
+                    //se préparer a recevoir le fichier et le transférer
+                    rest = getRest(input);
+                    //filename = getAction(rest);
+                    //rest = getRest(rest);
+                    //filename = getAction(rest);
+
+                    dest = getAction(rest);
+                    rest = getRest(rest);
+                    filename = getRest(rest);
+                    //out.println(dest);
+                    //out.println(filename + " : " + dest);
+                    //dest = getAction(rest);
+                    transfer = false;
+                    //no_file = false;
+                    no_user = true;
+                    //check to see if dest can receive a file
+                    synchronized (Main.clientUsers) {
+                        for (User client : Main.clientUsers) {
+                            if (client.getName().equals(dest)) {
+                                no_user = false;
+                                if (client.isFileable()) {
+                                    transfer = true;
+                                    user_received = client;
+                                } else {
+                                    out.println("NO_FILE_TRANFER");
+                                }
+                            }
+                        }
+                        if (no_user) {
+                            out.println("NO_USER");
+                        }
+                    }
+                    if (transfer) {
+                        user_received.getOut().println("555_TRANFER_REQ_555 " + name + " " + filename);
+                    }
+                } else if (input.startsWith("666_ACCEPTED_666")) {
+                    //si transaction acceptée alors envoyer fichier?
+                    sender = getRest(input);
+                    user_send = null;
+                    for (User client : Main.clientUsers) {
+                        if (client.getName().equals(sender)) {
+                            user_send = client;
+                        }
+                    }
+                    //open socket
+                    if (user_send != null) {
+                        handleTransfer(user_send);
                     }
 
-                }
-                Main.broadcastMessage(this.name + " has left the room");
-                Main.nbusers--;
-                remove();
-                disconnect();
-                out.close();
-                try {
-                    in.close();
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-                socket.close();
-            }
-            else {
-                synchronized (Main.clientUsers) {  // Synchroniser l'accès à la liste
-                    for (User clientOut : Main.clientUsers) {
-                        if(clientOut.getOut() != out){
-                            clientOut.getOut().println(this.name + " : " + input);}
-                    }
+                } else if (input.startsWith("PUBKEY")) {
+                    //prend l'input de la public key et la met dans le login
+                    key = getRest(input);
+                    System.out.println("received key : " +key);
+                    setKey(key);
+                } else if (input.startsWith("/quit")) {
+                    use = false;
+                    out.println("[SERVER] Goodbye!");
+                    synchronized (Main.clientUsers) {  // Synchroniser l'accès à la liste
+                        for (User clientOut : Main.clientUsers) {
+                            if (clientOut.getOut() != out) {
+                                clientOut.getOut().println(this.name + " has left the chat");
+                            }
+                        }
 
+                    }
+                    Main.broadcastMessage(this.name + " has left the room");
+                    Main.nbusers--;
+                    remove();
+                    disconnect();
+                    out.close();
+                    try {
+                        in.close();
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                    socket.close();
+                } else {
+                    synchronized (Main.clientUsers) {  // Synchroniser l'accès à la liste
+                        for (User clientOut : Main.clientUsers) {
+                            if (clientOut.getOut() != out) {
+                                clientOut.getOut().println(this.name + " : " + input);
+                            }
+                        }
+
+                    }
+                    Main.broadcastMessage(this.name + " : " + input);
                 }
-                Main.broadcastMessage(this.name + " : " + input);
             }
         }
     }
@@ -290,10 +308,57 @@ public class Service implements Runnable {
         return user.getIn().readLine().equals("666_ACCEPTED_666");
     }
 
+    private void setKey(String encodedKey) throws IOException, InvalidKeySpecException, NoSuchAlgorithmException {
+        //String cleanedKey = encodedKey.replaceAll("\\s", "");
+        byte[] decodedKey = Base64.getDecoder().decode(encodedKey);
+        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+        PublicKey key =  keyFactory.generatePublic(new X509EncodedKeySpec(decodedKey));
+        synchronized (Main.serverLogins) {
+            for (Login login : Main.serverLogins) {
+                if(login.getName().equals(name)){
+                    login.setPublicKey(key);
+                }
+            }
+        }
+    }
+
+    private boolean generateChallenge(PublicKey pub) throws Exception {
+        Random r = new Random((new Date()).getTime());
+        byte[] challengeBytes = new byte[64];
+        r.nextBytes(challengeBytes);
+        challengeBytes[0] = (byte)((byte) (new Random().nextInt(0x8f + 0x01)));//ça a changé donc be careful
+        System.out.println("Generated challenge:\n" + Base64.getEncoder().encodeToString(challengeBytes) + "\n");
+        String y = Base64.getEncoder().encodeToString(challengeBytes);
+        Cipher cipher = Cipher.getInstance("RSA/ECB/NoPadding");
+        cipher.init(Cipher.ENCRYPT_MODE, pub);
+        byte[] ciphered = cipher.doFinal(challengeBytes);
+
+        System.out.println("Encrypted challenge:\n" + Base64.getEncoder().encodeToString(ciphered) + "\n");
+
+        String cha =  Base64.getEncoder().encodeToString(ciphered);
+        out.println("CHALLENGE_SERVER "+cha);
+        String decede = sc.nextLine();
+        System.out.println("Decrypted challenge:\n" + decede);
+
+        return decede.equals(y);
+    }
+
+    public String encryptChallenge(byte[] challengeBytes, PublicKey pub) throws Exception {
+        // Utilisation du provider par défaut
+        Cipher cipher = Cipher.getInstance("RSA/ECB/NoPadding");
+
+        cipher.init(Cipher.ENCRYPT_MODE, pub);
+        byte[] ciphered = cipher.doFinal(challengeBytes);
+
+        System.out.println("Encrypted challenge:\n" + Base64.getEncoder().encodeToString(ciphered) + "\n");
+
+        return Base64.getEncoder().encodeToString(ciphered);
+    }
+
     public void run() {
         try {
             initService();
-        } catch (IOException e) {
+        } catch (Exception e) {
             throw new RuntimeException(e);
         }
         out.println("[SERVER] hello, welcome to the chat server!, " + Main.nbusers + " connectés, /quit to leave");
@@ -315,6 +380,10 @@ public class Service implements Runnable {
         try {
             mainLoop();
         } catch (IOException e) {
+            throw new RuntimeException(e);
+        } catch (InvalidKeySpecException e) {
+            throw new RuntimeException(e);
+        } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException(e);
         }
     }

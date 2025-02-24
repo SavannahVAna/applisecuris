@@ -5,6 +5,7 @@ import java.io.PrintStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.Scanner;
 
 public class Server {
     private ServerSocket serverSocket;
@@ -16,6 +17,8 @@ public class Server {
 
     public void start() {
         System.out.println("Server started on port " + serverSocket.getLocalPort());
+        new Thread(this::handleServerInput).start();
+        //new Thread(this::displayChat).start();
         while (true) {
             try {
 
@@ -31,6 +34,23 @@ public class Server {
 
             } catch (IOException e) {
                 e.printStackTrace();
+            }
+        }
+    }
+
+    private void handleServerInput() {
+        Scanner scanner = new Scanner(System.in);
+        while (true) {
+            String message = scanner.nextLine();
+            //Main.serverSaid(message);
+            broadcast("[Server]: " + message);
+        }
+    }
+
+    public void broadcast(String message) {
+        synchronized (Main.clientUsers) {
+            for (User client : Main.clientUsers) {
+                client.getOut().println(message);
             }
         }
     }

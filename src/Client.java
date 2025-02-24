@@ -91,6 +91,7 @@ public class Client {
                 String message;
                 String rt;
                 //String fff;
+                String challenge;
                 while ((message = reader.readLine()) != null) {
                     //ad differnt cases for protocol mesages
                     if (message.startsWith("NO_FILE_TRANFER")) {
@@ -111,8 +112,12 @@ public class Client {
                         rt = getRest(message);
                         //fff = getRest(message);
                         receiveFile(rt);
-                    }
-                    else {
+                    } else if (message.startsWith("GET_PUBKEY")) {
+                        //send getpuckyer/generatepubkey instructino
+                    } else if (message.startsWith("CHALLENGE_SERVER")) {
+                        //get challenge and send it to ard
+                        challenge = getRest(message);
+                    } else {
                         System.out.println(message);
                     }
 
