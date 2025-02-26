@@ -67,17 +67,14 @@ public class Service implements Runnable {
 
 
                         if (!user.isConnected()) {
-                            out.println("welcome back ! \nPlease enter your password : ");
-                            pass = sc.nextLine();
-                            if (pass.equals(user.getPass())){
                                 //send challenge
-                                if (generateChallenge(user.getPublicKey())) {
-                                    completed = true;
-                                    user.setConnected();
-                                }
+                            if (generateChallenge(user.getPublicKey())) {
+                                completed = true;
+                                user.setConnected();
                             }
+
                             else {
-                                out.println("wrong password");
+                                out.println("wrong key");
                             }
                         }
                         else {
@@ -87,11 +84,11 @@ public class Service implements Runnable {
                     }
                 }
                 if (!exist) {
-                    out.println("welcome to the server, please set a password : ");
-                    pass = sc.nextLine();
+                    out.println("[SERVER] New user detected, please send your public key");
+                    //pass = sc.nextLine();
                     //send getpubkey instruction
                     out.println("GET_PUBKEY");
-                    Main.serverLogins.add(new Login(nam,pass));
+                    Main.serverLogins.add(new Login(nam));
                     completed = true;
                 }
             } while (!completed);

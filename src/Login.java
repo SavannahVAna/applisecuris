@@ -12,6 +12,11 @@ public class Login {
         this.connected = true;
     }
 
+    public Login(String name) {
+        this.name = name;
+        this.connected = true;
+    }
+
     public Login(String name, String pass, PublicKey publicKey) {
         this.name = name;
         this.pass = pass;
